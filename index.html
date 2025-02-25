@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hand Tracking con JavaScript</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <style>
+        body {
+            text-align: center;
+        }
+
+        video,
+        canvas {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Hand Tracking con JavaScript</h1>
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const video = document.getElementById("video");
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+
+        // Configurar MediaPipe Hands
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+
+        hands.setOptions({
+            maxNumHands: 2,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        hands.onResults((results) => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            if (results.multiHandLandmarks) {
+                for (const landmarks of results.multiHandLandmarks) {
+                    drawConnectors(ctx, landmarks, HAND_CONNECTIONS, { color: 'cyan', lineWidth: 2 });
+                    drawLandmarks(ctx, landmarks, { color: 'white', radius: 5 });
+                }
+            }
+        });
+
+        async function startCamera() {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = stream;
+            video.play();
+
+            video.onloadedmetadata = () => {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+
+                const camera = new Camera(video, {
+                    onFrame: async () => {
+                        await hands.send({ image: video });
+                    },
+                    width: video.videoWidth,
+                    height: video.videoHeight
+                });
+
+                camera.start();
+            };
+        }
+
+        startCamera();
+    </script>
+</body>
+
+</html>
